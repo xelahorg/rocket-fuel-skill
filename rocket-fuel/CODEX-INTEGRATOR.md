@@ -97,10 +97,10 @@ OUTPUT: End with a report: files changed (one line each: path + what/why),
 
 ## Level 10 review mechanics (after every build call)
 
-1. `git diff --stat` first. If the diff is large (over ~400 changed lines), review file by file in `--stat` order, skipping lockfiles and generated/vendor output, but always read every hand-written source change in full. Codex's report is a claim, not evidence.
+1. **Delegate the diff read to a Sonnet reviewer subagent** (XELAH amendment, 2026-07-25): dispatch it via the Agent tool with `model: "sonnet"`, pointing it at the rock's contract and `git diff`. Its brief: read every hand-written source change in full (skip lockfiles and generated/vendor output), check the diff against the contract's GOAL/CONSTRAINTS/NON-GOALS and the smell vocabulary, and report structured findings with file:line citations plus a severity per finding. The Visionary reads the findings, not the diff. Codex's report is a claim, the reviewer's report is evidence to adjudicate, neither is proof.
 2. Run `PROOF_CMD` yourself. Only your run counts.
-3. Findings within the rock's scope: send ONE consolidated fix-round prompt (resume, same session): "Fix these N items, nothing else, re-run the proof." Max 2 fix rounds per rock.
-4. Still broken after round 2: the Visionary takes the wheel. Announce it, fix it yourself, note it in the close-out scorecard.
+3. Adjudicate each reviewer finding accept or reject with a reason (Rule 5). Accepted findings within the rock's scope: send ONE consolidated fix-round prompt (resume, same session): "Fix these N items, nothing else, re-run the proof." Max 2 fix rounds per rock.
+4. Still broken after round 2: takeover is pre-authorised (Alex, 2026-07-25) and bounded by the finishing rule. Last-mile residue: the Visionary finishes it, announces it, notes it in the scorecard. Unsalvageable diff: revert the rock, rewrite the contract, one fresh Codex run; still failing, stop and flag `needs-alex`. Never rebuild a rock inline.
 5. Deviations Codex reported: judge each against the Core Focus. Execution-detail deviations stand (the Integrator is the Tie Breaker). Vision or scope deviations get reverted in a fix round, with the reason logged.
 6. Commits: user-gated, authored by the driving agent, conventional format. Codex never commits.
 
@@ -111,5 +111,6 @@ OUTPUT: End with a report: files changed (one line each: path + what/why),
 - Fresh call fails or times out (no thread id captured): retry ONCE with a fresh session and a new round filename. Do not "resume" a thread that never started.
 - Resume call fails or times out: retry ONCE with the same explicit thread id and a new round filename. Second failure: fall back to a fresh session carrying a one-paragraph summary of the meeting so far, and SAY SO to the user in one line (session continuity broke; the round count continues, the new session cannot verify its own prior findings).
 - Still failing: stop and surface the error (rerun the identical command WITHOUT `2>/dev/null` to capture stderr). Never silently continue without the review.
+- Interrupted build (session restart or kill mid-run, no `-o` report written): the Codex thread usually survives. Grep the run's stream jsonl for the `thread.started` id, then `codex exec resume <id>` with a finish-the-contract prompt ("complete the contract in <file>; report files changed + proof output"). Only start a fresh build if no stream file or thread id exists (2026-07-25, recovered two orphaned night builds this way).
 - Auth errors: tell the user to run `codex login`. Broken install (`spawn ... ENOENT`): `npm i -g @openai/codex@latest`.
 - Prerequisite floor: Codex CLI >= 0.130; contract verified on 0.143.0.
