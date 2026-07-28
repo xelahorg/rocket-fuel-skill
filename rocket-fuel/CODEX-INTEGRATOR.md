@@ -91,8 +91,16 @@ KEY PATHS: <files/dirs to touch, files to read first>
 CONSTRAINTS: <do-not-touch list, style rules, deps that must not change>
 NON-GOALS: <explicitly out of scope, including every other rock>
 PROOF: Run `<PROOF_CMD>` and include its full output in your report.
+CRITIQUE: <only for rocks with a user-facing surface> Render or run the result
+  the way a user would experience it (screenshot the page desktop + mobile, open
+  the export, run the binary). Then critique it hostilely in writing: rhythm,
+  alignment, contrast, dead zones, anything that smells like an AI default. Fix
+  what you find, then add ONE deliberate refinement beyond the fix list. Include
+  the critique and the render evidence in your report. A report without them is
+  incomplete.
 OUTPUT: End with a report: files changed (one line each: path + what/why),
-  the proof output, and any deviations from the spec with reasons.
+  the proof output, the critique + evidence when CRITIQUE applies, and any
+  deviations from the spec with reasons.
 ```
 
 ## Level 10 review mechanics (after every build call)

@@ -1,6 +1,6 @@
 ---
 name: rocket-fuel
-description: Runs Fable 5 and OpenAI Codex as co-founders on the Rocket Fuel operating system. Fable is the Visionary (vision, plan, standards, final review); Codex is the Integrator (filters the plan, executes the build, reports). Context-routed, one entry point, four functions: KICKOFF a new project, CLARITY BREAK to refactor an existing one, SAME PAGE MEETING to pressure-test a plan, BUILD A ROCK to hand Codex a scoped task. Use when the user says /rocket-fuel, wants to start or refactor a project with Codex, wants a plan reviewed by a second model, or wants to delegate a build to Codex.
+description: Runs Fable 5 and OpenAI Codex as co-founders on the Rocket Fuel operating system. Fable is the Visionary (vision, plan, standards, final review); Codex is the Integrator (filters the plan, executes the build, reports). Context-routed, one entry point, five functions: KICKOFF a new project, CLARITY BREAK to refactor an existing one, SAME PAGE MEETING to pressure-test a plan, BUILD A ROCK to hand Codex a scoped task, RUN A WAVE to produce many parallel units under one constitution without a human in the loop. Use when the user says /rocket-fuel, wants to start or refactor a project with Codex, wants a plan reviewed by a second model, wants to delegate a build to Codex, or wants a batch of same-kind units built in parallel.
 ---
 
 # Rocket Fuel: the Visionary/Integrator OS for Fable + Codex
@@ -42,6 +42,7 @@ Then detect the function:
 | Existing codebase and "refactor / clean up / audit / what should we fix" | **CLARITY BREAK** |
 | An existing plan, spec, or PRD file that Codex has not reviewed | **SAME PAGE MEETING** (standalone) |
 | A frozen spec or one clearly scoped task ("have codex build X") | **BUILD A ROCK** (standalone) |
+| Many units of the same kind ("build N sites/pages/variants", "run a wave") | **RUN A WAVE** |
 
 Confirm in one line, then go: "Running a KICKOFF for <thing>. Say stop if you wanted something else." If genuinely ambiguous, ask ONE question. Never a questionnaire.
 
@@ -55,10 +56,12 @@ Confirm in one line, then go: "Running a KICKOFF for <thing>. Say stop if you wa
 3. **Same Page Meeting.** First `git init` if there is no repo yet and commit the planning artifacts (the snapshot discipline in the invocation contract depends on git existing before the FIRST Codex call). Then run the meeting per [SAME-PAGE-MEETING.md](SAME-PAGE-MEETING.md). Codex reviews read-only, you argue back, bounded rounds, verdict line, full log.
    - Completion: `VERDICT: SAME PAGE` in `SAME-PAGE-LOG.md`, or user override recorded.
 4. **The Integrator builds.** For each rock in order, hand Codex a frozen build contract per [CODEX-INTEGRATOR.md](CODEX-INTEGRATOR.md). Baseline first: `git init` if there is no repo yet, and commit the planning artifacts before the first rock, so `git status` is empty when Codex launches and the build diff is exactly Codex's work. While it runs, you do not touch the code (Rule 2).
-   - Completion: Codex reports files changed + proof output for the rock.
-5. **Level 10 Review** (per rock). Delegate the full-diff read to a Sonnet reviewer subagent (XELAH amendment, 2026-07-25): it reads `git diff` in its own context and reports structured findings against the contract and the smell vocabulary (duplicated code, mysterious names, feature envy, message chains, speculative generality), citing file:line for each. You adjudicate each finding accept or reject with a reason (Rule 5, verbatim log), and you run the proof command yourself: neither Codex's pasted output nor the reviewer's summary counts as proof. Anything off-track goes back as a fix round (resume the same Codex session, max 2). At the cap, takeover is pre-authorised (Alex, 2026-07-25) and bounded: if the residue is last-mile, finish it yourself; if the diff is unsalvageable, revert the rock, rewrite the contract, re-run Codex once, and still failing, stop and flag `needs-alex`. Never rebuild a rock inline.
+   - **Self-critique clause (XELAH amendment, 2026-07-28, the Autonomous Loop).** Any rock with a user-facing surface (a page, a UI, an export, a rendered anything) gets the CRITIQUE line in its contract: Codex renders its own output the way a user would experience it, critiques it hostilely in writing, fixes what it finds, adds one deliberate refinement, and includes the critique + evidence in its report. A report without the critique on a surfaced rock is incomplete and goes back before review.
+   - Completion: Codex reports files changed + proof output for the rock (+ critique and evidence where the clause applies).
+5. **Level 10 Review** (per rock). Delegate the full-diff read to a Sonnet reviewer subagent (XELAH amendment, 2026-07-25): it reads `git diff` in its own context and reports structured findings against the contract and the smell vocabulary (duplicated code, mysterious names, feature envy, message chains, speculative generality), citing file:line for each. You adjudicate each finding accept or reject with a reason (Rule 5, verbatim log), and you run the proof command yourself: neither Codex's pasted output nor the reviewer's summary counts as proof. This review is the director seat of the Autonomous Loop (XELAH amendment, 2026-07-28): where the rock has a rendered surface, the reviewer also reads Codex's self-critique evidence, and your proof includes experiencing the artifact itself (load the page, open the export), because a green build is not a green render. Anything off-track goes back as a fix round (resume the same Codex session, max 2). At the cap, takeover is pre-authorised (Alex, 2026-07-25) and bounded: if the residue is last-mile, finish it yourself; if the diff is unsalvageable, revert the rock, rewrite the contract, re-run Codex once, and still failing, stop and flag `needs-alex`. Never rebuild a rock inline.
    - Completion: proof passes when YOU run it.
 6. **Close the meeting.** Report the scorecard: rocks done / total, proof results, deviations accepted, issues deferred. Offer the commit. Code commits are user-gated and Fable-authored (the planning-artifact baseline commits are machinery: announced, not asked); Codex never commits.
+7. **Cold review + rules conversion (XELAH amendment, 2026-07-28, all four functions).** Before ending the run, scan its findings and fix rounds cold. Any defect class that appeared twice or more converts to a binding rule now, not next time: run/project-scoped rules go into a `## STANDARDS` section of `VTO.md` (or the wave's `BRIEFS.md`) so every later rock inherits them; rules durable beyond the project append to `SYSTEM/Learning/skill-addenda/rocket-fuel.md` followed by `sync-skills.sh` (auto-binding on the next invocation; the weekly fold ratifies them into this file). Autonomous, reported in the scorecard, never gated. OS-level rules (CLAUDE.md, guardrails, hooks) are proposed to the user, never auto-written.
 
 ## Function 2: CLARITY BREAK (refactor an existing repo)
 
@@ -74,7 +77,20 @@ The file the user pointed at becomes the canonical plan file for the whole run: 
 
 ## Function 4: BUILD A ROCK (standalone)
 
-If the user handed you a frozen spec file, use it. If they handed you a sentence, write the one-rock contract yourself (GOAL, SPEC, KEY PATHS, CONSTRAINTS, NON-GOALS, PROOF) and show it in one message before launching. Then: clean-tree gate, build, Level 10 review, user-gated commit, per [CODEX-INTEGRATOR.md](CODEX-INTEGRATOR.md).
+If the user handed you a frozen spec file, use it. If they handed you a sentence, write the one-rock contract yourself (GOAL, SPEC, KEY PATHS, CONSTRAINTS, NON-GOALS, PROOF, CRITIQUE where surfaced) and show it in one message before launching. Then: clean-tree gate, build, Level 10 review, user-gated commit, per [CODEX-INTEGRATOR.md](CODEX-INTEGRATOR.md).
+
+## Function 5: RUN A WAVE (XELAH amendment, 2026-07-28, the Autonomous Loop)
+
+Many units of the same kind, one constitution, no human between the two gates. The user approves the wave brief (intent) and the ship; everything between runs itself. Full protocol: the vault article [[autonomous-loop]].
+
+1. **The constitution.** Write `BRIEFS.md`: the non-negotiable standards every unit must meet (real copy, accessibility, responsiveness, zero console errors, the project's own bars), plus a `## STANDARDS` section that grows as rules convert mid-wave. One Grill pass with the user to set the wave's scope, count, and axes; this is the intent gate.
+2. **The registry.** In `BRIEFS.md`, one line per unit recording its axes (domain, technique, palette, type, mood, or whatever axes fit the medium). Every new unit's brief may share AT MOST ONE axis with anything already in the registry. Convergence is the failure mode; the registry is the immune system.
+3. **Per-unit briefs.** For each unit, a frozen contract per [CODEX-INTEGRATOR.md](CODEX-INTEGRATOR.md): concept, its axes, its proof, and the CRITIQUE clause always on. Builders get autonomy inside the brief, never over the constitution.
+4. **Assets stay with the director.** You generate/source all media and hand paths to builders: one queue, one budget, no cap collisions. Builders never mint assets.
+5. **Fan out.** Parallel Codex sessions, each owning one unit's folder, no shared components between units. Stagger render passes: headless-Chrome screenshots hang under parallel load and on autoplaying loop videos; when a screenshot path is known to hang, the unit verifies via built-DOM fetch instead.
+6. **Per unit: three-pass critique, then director review.** The builder renders, critiques hostilely, refines plus one deliberate upgrade, reports with evidence. You review the evidence, run the proof, send specific fix feedback (max 2 fix rounds, then the Level 10 takeover bounds).
+7. **Rules convert mid-wave.** A defect class seen twice anywhere in the wave becomes a `## STANDARDS` rule immediately; later units build under rules earlier units paid for. Durable rules append to `SYSTEM/Learning/skill-addenda/rocket-fuel.md` per the cold-review step.
+8. **Close.** Scorecard across units, registry final state, rules minted, then the ship gate: nothing deploys or publishes without the user.
 
 ## Anti-patterns (the tells)
 
