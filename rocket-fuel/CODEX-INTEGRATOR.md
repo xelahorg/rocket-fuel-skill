@@ -21,6 +21,7 @@ snap() { git status --porcelain > "$RUN/pre-$1.txt"; git diff > "$RUN/pre-$1.pat
 ```
 11. A stream event complaining about "skills context budget" is benign Codex housekeeping, not a failure.
 12. **One tool call per step, never one compound command.** Write the prompt/contract file with the Write tool (not a heredoc), run the snapshot as its own small Bash call, then run the bare `codex exec` line. A single compound command chaining these trips the harness auto-mode classifier and stalls the run on a permission prompt. Same rule for post-run housekeeping: `gh issue close`, branch deletes, etc. go as separate small commands.
+13. **Never chain `codex exec` behind a conditional command.** A `grep -c` that exits 1 on zero matches silently kills the launch and the background task reports exit=1 with no report file. The exec line is always a bare invocation, and a missing `-o` report file means "did not run", not "failed" (2026-07-26).
 
 ## Review calls (Same Page Meeting, read-only)
 
@@ -111,6 +112,10 @@ OUTPUT: End with a report: files changed (one line each: path + what/why),
 4. Still broken after round 2: takeover is pre-authorised (Alex, 2026-07-25) and bounded by the finishing rule. Last-mile residue: the Visionary finishes it, announces it, notes it in the scorecard. Unsalvageable diff: revert the rock, rewrite the contract, one fresh Codex run; still failing, stop and flag `needs-alex`. Never rebuild a rock inline.
 5. Deviations Codex reported: judge each against the Core Focus. Execution-detail deviations stand (the Integrator is the Tie Breaker). Vision or scope deviations get reverted in a fix round, with the reason logged.
 6. Commits: user-gated, authored by the driving agent, conventional format. Codex never commits.
+
+## Codex Cloud (laptop-off lane)
+
+Environments are web-UI-only: no CLI exists to create or list them, so record env IDs the moment they are discovered (the live env map lives in memory `project_night_build_lanes`). Submit work with `codex cloud exec`; use `--branch` to build on a PR branch when a rock's prerequisites live in an unmerged PR. Auth rides the ChatGPT login (subscription), not an API key.
 
 ## Failure handling
 
