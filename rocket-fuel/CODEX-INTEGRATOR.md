@@ -67,7 +67,7 @@ Default build mode is Codex's OWN sandbox with write access to the workspace. Do
 
 ```bash
 snap build   # pre-build.txt must be empty (everything baselined)
-codex exec --sandbox workspace-write --full-auto --skip-git-repo-check --json \
+~/.claude/scripts/codex-run.sh exec --sandbox workspace-write -c approval_policy="never" --skip-git-repo-check --json \
   -o "$RUN/build-out.txt" - <"$RUN/contract.md" > "$RUN/stream-build.jsonl" 2>/dev/null
 BUILD_THREAD=$(grep -m1 '"type":"thread.started"' "$RUN/stream-build.jsonl" \
   | sed 's/.*"thread_id":"\([^"]*\)".*/\1/')   # fix rounds resume THIS id; echo it visibly
@@ -145,6 +145,18 @@ OUTPUT: End with a report: files changed (one line each: path + what/why),
 ## Codex Cloud (laptop-off lane)
 
 Environments are web-UI-only: no CLI exists to create or list them, so record env IDs the moment they are discovered (the live env map lives in memory `project_night_build_lanes`). Submit work with `codex cloud exec`; use `--branch` to build on a PR branch when a rock's prerequisites live in an unmerged PR. Auth rides the ChatGPT login (subscription), not an API key.
+
+## Dual-account failover (XELAH amendment, 2026-08-17)
+
+Two Codex accounts live on this Mac: A at `~/.codex` (primary), B at `~/.codex-b` (overflow), selected per-invocation via `CODEX_HOME`. The wrapper `~/.claude/scripts/codex-run.sh` owns the choice: it reads the live weekly meter (`~/.claude/scripts/usage-meter.sh codex`, source: the wham/usage backend endpoint) and dispatches on B once A is at or above 95% (Alex's binding rule), retrying once on the other account on a usage-limit error. Every switch appends to `~/.claude/scripts/subscription-switches.log`.
+
+Rules that keep this safe:
+
+1. FRESH dispatches (build, review, cloud) go through `codex-run.sh`. RESUME calls NEVER do: threads live inside one home, so `codex exec resume` is always a bare `codex` call with `CODEX_HOME` pinned to the home that ran the original attempt. Which home that was: check the switches log around the dispatch timestamp; no line means it ran on A.
+2. A limit hit mid-thread means re-contract on the other account, never resume across homes.
+3. Cloud env IDs are account-scoped. `codex-run.sh` translates A-account env IDs to B's via its `# ENV_MAP` section; an unmapped ID makes it refuse (exit 78) rather than run against the wrong account. Keep the map current when environments are created.
+4. Flag note (0.147): `--full-auto` no longer exists on `codex exec`; the equivalent is `-c approval_policy="never"` with `--sandbox workspace-write`, as the build block above shows.
+5. Resume cwd gotcha (0.147, field-proven 2026-08-17): `codex exec resume` accepts no `-C` and takes its workspace from the INVOKING shell's cwd. A resume launched from the wrong directory gives the thread the wrong writable scope and Codex reports BLOCKED. Always `cd` into the rock's workspace before any resume call.
 
 ## Failure handling
 
