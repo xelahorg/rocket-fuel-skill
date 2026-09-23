@@ -90,7 +90,9 @@ SPEC: Read <actual plan file path>, rock <N>. It is frozen and already
   intent is unambiguous, implement the closest faithful version and report the
   deviation. If the impossibility is MATERIAL (would change behavior, scope, or
   an interface), do not improvise: stop, output `BLOCKED: <reason>` as your
-  report, and wait. Do not redesign.
+  report, and wait. Do not redesign. A contract whose rock adds a rule over an
+  existing column (visibility, permission, gate, billing, status) and carries no
+  writer inventory for that column is MATERIAL: stop BLOCKED.
 KEY PATHS: <files/dirs to touch, files to read first>
 CONSTRAINTS: <do-not-touch list, style rules, deps that must not change>
 NON-GOALS: <explicitly out of scope, including every other rock>

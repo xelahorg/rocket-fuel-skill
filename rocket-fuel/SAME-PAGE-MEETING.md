@@ -35,6 +35,11 @@ For every issue you find, output one line in this exact shape:
 Also flag: anything with a materially simpler alternative, and any rock whose
 "proof" would pass while the feature is actually broken.
 
+Also: for every existing column or field the plan's new rule reads, list its
+writers (app code AND SQL: RPC bodies, triggers, defaults) and say whether the
+rule survives each write. A writer that uses the field as a baton or state
+machine is a FIX finding.
+
 Do NOT modify any files. End your reply with EXACTLY one line:
 VERDICT: SAME PAGE
 or
