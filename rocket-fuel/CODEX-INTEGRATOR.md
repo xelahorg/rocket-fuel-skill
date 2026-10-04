@@ -100,9 +100,19 @@ SPEC: Read <actual plan file path>, rock <N>. It is frozen and already
   existing column (visibility, permission, gate, billing, status) and carries no
   writer inventory for that column is MATERIAL: stop BLOCKED.
 KEY PATHS: <files/dirs to touch, files to read first>
+TABLES TOUCHED OR SHADOWED: <only for rocks that add or change a table, or
+  model a real-world thing> Every existing table this rock writes, reads, or
+  models a twin of (same product, person, payer, item, document, amount owed),
+  checked against DOMAIN-MODEL and the repo's coupling map, each with its
+  decision: link now / link later (ISSUES entry) / deliberately separate
+  (reason). A table-adding rock with no line here is MATERIAL: stop BLOCKED.
 CONSTRAINTS: <do-not-touch list, style rules, deps that must not change>
 NON-GOALS: <explicitly out of scope, including every other rock>
 PROOF: Run `<PROOF_CMD>` and include its full output in your report.
+  Any TypeScript script the PROOF runs inside the Codex sandbox is invoked as
+  `node --import tsx <script>` from its package dir, never the `tsx` launcher
+  or `pnpm exec tsx` (the launcher's IPC pipe dies with EPERM in the sandbox,
+  and a failed write step can then masquerade as an idempotent pass).
 CRITIQUE: <only for rocks with a user-facing surface> Render or run the result
   the way a user would experience it (screenshot the page desktop + mobile, open
   the export, run the binary). Then critique it hostilely in writing: rhythm,
