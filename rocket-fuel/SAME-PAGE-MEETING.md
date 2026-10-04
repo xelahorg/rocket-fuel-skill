@@ -1,6 +1,6 @@
-# The Same Page Meeting (Fable ↔ Codex, IDS protocol)
+# The Same Page Meeting (Visionary and Integrator, IDS protocol)
 
-The adversarial planning loop. Fable submits the plan, Codex attacks it as the Integrator, the two iterate until the verdict line says so or the round cap hits. Cross-model review kills the echo chamber: Codex advises, Fable decides, the user breaks deadlocks.
+The adversarial planning loop. The Visionary (the orchestrating session: Opus 5.5 by default, Fable by escalation) submits the plan, the Integrator (Codex, or a fresh Opus subagent when Codex is down) attacks it, the two iterate until the verdict line says so or the round cap hits. Cross-model review kills the echo chamber: the Integrator advises, the Visionary decides, the user breaks deadlocks. Lane 3 runs up to 5 rounds; contracted Lane 2 runs one (HR20).
 
 ## Inputs
 
@@ -72,7 +72,7 @@ Append per round, verbatim findings first, your response second:
 ## Round N
 ### Integrator findings (Codex, verbatim)
 <paste the -o file content>
-### Visionary response (Fable)
+### Visionary response (the orchestrator)
 - ACCEPTED: <finding> -> <what changed in PLAN.md>
 - REJECTED: <finding> -> <why, in one sentence>
 - DEFERRED: <finding> -> ISSUES.md

@@ -1,14 +1,14 @@
 # Codex Integrator: the invocation contract
 
-Every Codex call in this skill goes through these exact patterns. They encode real traps; do not improvise around them. Verified live on codex-cli 0.143.0.
+Every Codex call in this skill goes through these exact patterns. They encode real traps; do not improvise around them. Field-proven from codex-cli 0.143.0 onward; every flag form below parse-checked on codex-cli 0.153.4 (`codex exec --help`, `codex exec resume --help`, 2026-10-04). This file is the Codex transport for the Integrator seat; when an Opus integrator holds the seat, SKILL.md "Opus integrator mechanics" applies and the build contract template below binds it unchanged.
 
 ## The non-negotiables (every call)
 
 1. **Prompts go in via a file on stdin** (`- <"$FILE"`), never as an argv string. This kills two traps at once: shell-quoting bugs and the stdin hang (`codex exec` reads stdin in addition to any argv prompt; under a non-TTY harness an unredirected call blocks forever at 0 CPU). If you ever must pass an argv prompt, append `< /dev/null`.
 2. `2>/dev/null` always. Codex streams thinking tokens to stderr; they would flood the driving context.
 3. **Capture the JSONL stream to a file and parse it after exit.** Never pipe the stream through `grep` directly: `grep -m1` exits at first match, closes the pipe, and can kill Codex mid-run before the output file is written.
-4. `--json -o <outfile>`: the answer is read from the `-o` file, the stream file is parsed only for the thread id.
-5. **One fresh temp dir per run, fresh filenames per round** (`RUN=$(mktemp -d /tmp/rf.XXXXXX)`). Never reuse an output path across rounds: after a timeout or failure, a reused path serves the PREVIOUS round's verdict and looks exactly like success.
+4. `--json -o <outfile>`, with the stream redirected to a file. **The stream log is the primary report** (RF-093): extract the final message from `item.completed` items whose `item.type` is `agent_message` (`jq -r 'select(.type=="item.completed" and .item.type=="agent_message") | .item.text' "$RUN/stream-<round>.jsonl"`), and the thread id from `thread.started`. The `-o` file is best-effort: never conclude "no report" from an empty or unparseable `-o` before grepping the stream for `"type":"agent_message"`; `tail -c` of the stream is the last resort.
+5. **One durable run home per run, fresh filenames per round.** At the run's first Codex call create `~/.hpa-verify/<run>/` with runner, briefs, codex and evidence subfolders, point `RUN` at its `codex/` folder, and name it in the run log (RF-012). Never /tmp (a reboot wiped a rock's runner, briefs and evidence) and never iCloud. Never reuse an output path across rounds: after a timeout or failure, a reused path serves the PREVIOUS round's verdict and looks exactly like success.
 6. Resume by explicit thread id, never `--last`. A wrong session looks exactly like success.
 7. Never pin `-m`. Model pins 400 on ChatGPT-account auth. Before round 1, echo the active model if `~/.codex/config.toml` has a `model` line, else say "Codex CLI default".
 8. Bash tool `timeout: 600000` (10 min) on every call. Codex writes output only at completion; a killed call is silently empty.
@@ -20,23 +20,25 @@ snap() { git status --porcelain > "$RUN/pre-$1.txt"; git diff > "$RUN/pre-$1.pat
   git ls-files --others --exclude-standard -z | xargs -0 shasum > "$RUN/pre-$1.sha" 2>/dev/null || true; }
 ```
 11. A stream event complaining about "skills context budget" is benign Codex housekeeping, not a failure.
-12. **One tool call per step, never one compound command.** Write the prompt/contract file with the Write tool (not a heredoc), run the snapshot as its own small Bash call, then run the bare `codex exec` line. A single compound command chaining these trips the harness auto-mode classifier and stalls the run on a permission prompt. Same rule for post-run housekeeping: `gh issue close`, branch deletes, etc. go as separate small commands.
-13. **Never chain `codex exec` behind a conditional command.** A `grep -c` that exits 1 on zero matches silently kills the launch and the background task reports exit=1 with no report file. The exec line is always a bare invocation, and a missing `-o` report file means "did not run", not "failed" (2026-07-26).
-14. **Worktrees for Codex builds live in `~/worktrees/`, NEVER /tmp.** The macOS /tmp cleaner deletes worktree `.git` link files and tracked files mid-run (84 files lost once, recovered via `git ls-files -d -z | xargs -0 git restore --` then `git worktree repair` twice, then `git worktree move`). Run temp dirs for OUTPUTS (`$RUN`) may stay in /tmp; the working tree may not. Before any long unattended run, commit the current state as an explicit `wip: ... UNREVIEWED` checkpoint and push; review fixes land as their own commit on top (2026-07-31).
-15. **Know the sandbox's hard limits and contract around them.** workspace-write blocks socket binds (every Chrome/puppeteer launch, `npx tsx --test` IPC pipes), port listens, `rm -f` (use plain rm or overwrite), and any write outside the project dir (name /tmp paths for OUTPUTS only via shell redirection, pre-create directories). In-sandbox proofs are therefore STATIC (node --check, bash -n, direct-loader tests); anything launching a browser or binding a port is the Visionary's live proof outside the sandbox, and the contract says so explicitly so Codex never sits wedged trying (2026-07-30, two wedges in one night).
-16. **The never-started signature:** process alive at ~0 CPU, empty `-o` file, and no new rollout file in `~/.codex/sessions/` for the launch timestamp means Codex never started (usually a stdin block). Kill and relaunch with stdin closed instead of waiting (2026-07-30, a 4-hour wedge).
+12. **One tool call per step, never one compound command.** Write the prompt/contract file with the Write tool (not a heredoc), run the snapshot as its own small Bash call, then run the `codex-run.sh` line (fresh dispatch) or the bare `codex exec ... resume` line (resume, `CODEX_HOME` pinned), as its own call. A single compound command chaining these trips the harness auto-mode classifier and stalls the run on a permission prompt. Same rule for post-run housekeeping: `gh issue close`, branch deletes, etc. go as separate small commands.
+13. **Never chain a Codex launch behind a conditional command.** A `grep -c` that exits 1 on zero matches silently kills the launch and the background task reports exit=1 with no report file. The launch line always stands alone, never behind `&&`, `||` or a test (2026-07-26). An empty or missing `-o` file alone does not mean "did not run": read the stream log first (non-negotiable 4); "did not run" is the never-started signature in 16.
+14. **Worktrees for Codex builds live in `~/worktrees/`, NEVER /tmp.** The macOS /tmp cleaner deletes worktree `.git` link files and tracked files mid-run (84 files lost once, recovered via `git ls-files -d -z | xargs -0 git restore --` then `git worktree repair` twice, then `git worktree move`). Run outputs live in the run home (non-negotiable 5), never /tmp. The one sanctioned exception: hpa-portal `scripts/ship.sh new` creates its ship worktrees under `SCRATCH="${TMPDIR:-/tmp}/hpa-ship"` (on macOS `$TMPDIR` is `/var/folders/<..>/T/`, so the path is `$TMPDIR/hpa-ship/<slug>`). Those worktrees are ship.sh property: `ship.sh push` deletes them on success, nothing durable lives there, and run artifacts are mirrored out before push (RF-348, RF-349). Before any long unattended run, commit the current state as an explicit `wip: ... UNREVIEWED` checkpoint and push; review fixes land as their own commit on top (2026-07-31).
+15. **Know the sandbox's hard limits and contract around them.** workspace-write blocks socket binds (every Chrome/puppeteer launch, `npx tsx --test` IPC pipes), port listens, `rm -f` (use plain rm or overwrite), and any write outside the project dir (name run-home paths for OUTPUTS only via shell redirection, pre-create directories). In-sandbox proofs are therefore STATIC (node --check, bash -n, direct-loader tests); anything launching a browser or binding a port is the Visionary's live proof outside the sandbox, and the contract says so explicitly so Codex never sits wedged trying (2026-07-30, two wedges in one night).
+16. **The never-started signature:** process alive at ~0 CPU, no `thread.started` in the stream log, empty `-o` file, and no new rollout file in `~/.codex/sessions/` or `~/.codex-b/sessions/` for the launch timestamp means Codex never started (usually a stdin block). Kill and relaunch with stdin closed instead of waiting (2026-07-30, a 4-hour wedge).
 
 ## Review calls (Same Page Meeting, read-only)
 
 Fresh session:
 
 ```bash
-RUN=$(mktemp -d /tmp/rf.XXXXXX)
+RUN="$HOME/.hpa-verify/<run>/codex"; mkdir -p "$RUN"   # once per run (non-negotiable 5)
 # write the review prompt to "$RUN/prompt-r1.md" first
 snap r1
-codex exec -s read-only --skip-git-repo-check --json -o "$RUN/out-r1.txt" \
+~/.claude/scripts/codex-run.sh exec --sandbox read-only --skip-git-repo-check --json -o "$RUN/out-r1.txt" \
   - <"$RUN/prompt-r1.md" > "$RUN/stream-r1.jsonl" 2>/dev/null
 ```
+
+Fresh dispatches go through `codex-run.sh` (AG-40), with the sandbox spelled `--sandbox <mode>`, never `-s` or `--sandbox=<mode>`: the wrapper detects only the separate long flag and otherwise injects `--sandbox workspace-write`, so `-s` fails with "--sandbox cannot be used multiple times", exit 2 (RF-067).
 
 After it exits, extract the thread id from the stream file and echo it visibly:
 
@@ -45,15 +47,18 @@ THREAD_ID=$(grep -m1 '"type":"thread.started"' "$RUN/stream-r1.jsonl" \
   | sed 's/.*"thread_id":"\([^"]*\)".*/\1/')
 ```
 
-Resume the SAME session for later rounds. THE SAFETY LINE: `resume` rejects `-s`; without `-c sandbox_mode="read-only"` Codex inherits the config default and can WRITE files mid-review.
+Resume the SAME session for later rounds (RF-132). Resumes are the one bare `codex` call (never `codex-run.sh`): run from the workspace, `CODEX_HOME` pinned to the home that holds the thread, every flag BEFORE `resume`. THE SAFETY LINE: `codex exec resume` rejects `-s`, `--sandbox` and `-C` ("unexpected argument", parse-checked on 0.153.4), so the sandbox goes in as `-c sandbox_mode="read-only"` ahead of `resume`; without it Codex inherits the config default and can WRITE files mid-review.
+
+Find the home once per thread (RF-006): `grep -rl "$THREAD_ID" ~/.codex/sessions ~/.codex-b/sessions`. The home is the directory above `sessions/` in the hit; "no rollout found" on resume means the wrong home, not a dead thread. Each line below is its own Bash call:
 
 ```bash
+cd "<workspace>"
 snap rN
-codex exec resume "$THREAD_ID" -c sandbox_mode="read-only" --skip-git-repo-check --json \
-  -o "$RUN/out-rN.txt" - <"$RUN/prompt-rN.md" > "$RUN/stream-rN.jsonl" 2>/dev/null
+CODEX_HOME="<home holding the thread>" codex exec -c sandbox_mode="read-only" --skip-git-repo-check --json \
+  -o "$RUN/out-rN.txt" resume "$THREAD_ID" - <"$RUN/prompt-rN.md" > "$RUN/stream-rN.jsonl" 2>/dev/null
 ```
 
-Then Read the round's `-o` file and grep its last line for `VERDICT:`.
+Then Read the round's `-o` file and grep its last line for `VERDICT:`; if the file is empty or carries no verdict, extract the final agent message from the stream log (non-negotiable 4) before concluding anything.
 
 ## Build calls (rock execution, sandboxed write)
 
@@ -73,12 +78,13 @@ BUILD_THREAD=$(grep -m1 '"type":"thread.started"' "$RUN/stream-build.jsonl" \
   | sed 's/.*"thread_id":"\([^"]*\)".*/\1/')   # fix rounds resume THIS id; echo it visibly
 ```
 
-If the rock needs network (installing deps), add `-c sandbox_workspace_write.network_access=true` and say so in one line before running. Fix rounds resume the same session with the sandbox forced via `-c`:
+If the rock needs network (installing deps), add `-c sandbox_workspace_write.network_access=true` and say so in one line before running. Fix rounds resume the same session in the review-round form (RF-132): from the rock's workspace, `CODEX_HOME` pinned to the thread's home, flags before `resume`, the sandbox forced via `-c`:
 
 ```bash
+cd "<rock workspace>"
 snap fixN
-codex exec resume "$BUILD_THREAD" -c sandbox_mode="workspace-write" --skip-git-repo-check --json \
-  -o "$RUN/fix-outN.txt" - <"$RUN/fixN.md" > "$RUN/stream-fixN.jsonl" 2>/dev/null
+CODEX_HOME="<home holding the thread>" codex exec -c sandbox_mode="workspace-write" -c approval_policy="never" \
+  --skip-git-repo-check --json -o "$RUN/fix-outN.txt" resume "$BUILD_THREAD" - <"$RUN/fixN.md" > "$RUN/stream-fixN.jsonl" 2>/dev/null
 ```
 
 ## The build contract template
@@ -133,7 +139,7 @@ OUTPUT: End with a report: files changed (one line each: path + what/why),
 - **A finding that survives a correct fix unchanged indicts the harness, not the artifact.** Check the measurement semantics (clipping, visibility, stacking) before spending another fix round.
 - **Curl-proof strings come from the exact rendered variant, apostrophe-free.** React escapes apostrophes to `&#x27;`; a quoted string from source copy false-fails a correct build. When a leak grep fires, READ the matching text; when a presence check fails, screenshot first. Canonical patterns: currency leak `/RM[0-9,.]/` case-sensitive digit-anchored; label presence checks case-insensitive (CSS text-transform changes innerText casing).
 - **Name what a live-account action writes before running it.** Diagnostic-looking actions can mutate (a Stripe Checkout link mints an order row); during anyone's live test, state the write or do not act.
-- **Next.js worktree hygiene:** never run a dev server on a worktree carrying a proof-build `.next` (or vice versa), and after ANY edit while a symlinked-node_modules worktree dev server runs: stop, `mv .next` aside, restart, warm with curl. `rm -rf .next` is permission-blocked; `mv` aside is the recovery.
+- **Next.js worktree hygiene:** never run a dev server on a worktree carrying a proof-build `.next` (or vice versa), and after ANY edit while a symlinked-node_modules worktree dev server runs: stop, `mv .next` aside, restart, warm with curl. Never `rm -rf .next` (it is permission-blocked); `mv` aside is the recovery.
 
 ## Level 10 review mechanics (after every build call)
 
@@ -146,7 +152,7 @@ OUTPUT: End with a report: files changed (one line each: path + what/why),
 
 ## Codex Cloud (laptop-off lane)
 
-Environments are web-UI-only: no CLI exists to create or list them, so record env IDs the moment they are discovered (the live env map lives in memory `project_night_build_lanes`). Submit work with `codex cloud exec`; use `--branch` to build on a PR branch when a rock's prerequisites live in an unmerged PR. Auth rides the ChatGPT login (subscription), not an API key.
+Environments are web-UI-only: no CLI exists to create or list them, so record env IDs the moment they are discovered (the live env map lives in memory `project_night_build_lanes`). Submit work with `~/.claude/scripts/codex-run.sh cloud exec` (a fresh dispatch, so through the wrapper, which maps `--env` per account; Dual-account rule 3); use `--branch` to build on a PR branch when a rock's prerequisites live in an unmerged PR. Auth rides the ChatGPT login (subscription), not an API key.
 
 ## Dual-account failover (XELAH amendment, 2026-08-17; symmetric 2026-08-19)
 
@@ -156,21 +162,23 @@ The wrapper `~/.claude/scripts/codex-run.sh` owns the per-dispatch choice: it re
 
 Rules that keep this safe:
 
-1. NEVER type bare `codex exec` from a session. Every FRESH dispatch (build, review, cloud) goes through `codex-run.sh`; a bare call bypasses the meter and on 2026-08-19 drained one account to 4% while the other sat at 1%. RESUME calls are the one exception: threads live inside one home, so `codex exec resume` is always a bare `codex` call with `CODEX_HOME` pinned to the home that ran the original attempt. Which home that was: the switches log line for that dispatch names it (from/to carry `home(email)`).
+1. NEVER type bare `codex exec` from a session. Every FRESH dispatch (build, review, cloud) goes through `codex-run.sh`; a bare call bypasses the meter and on 2026-08-19 drained one account to 4% while the other sat at 1%. RESUME calls are the one exception: threads live inside one home, so `codex exec resume` is always a bare `codex` call with `CODEX_HOME` pinned to the home that ran the original attempt, in the form shown under Review calls. Which home that was: `grep -rl "<thread-id>" ~/.codex/sessions ~/.codex-b/sessions`, never the switches log (RF-006); "no rollout found" means the wrong home, not a dead thread.
 2. A limit hit mid-thread means re-contract on the other home, never resume across homes.
 3. Cloud env IDs are account-scoped. `codex-run.sh` keys its env map on ACCOUNT EMAIL (`# ENV owner map`): it reads the selected home's email and translates the `--env` id to the same repo's env owned by that account; an unknown id, an unreadable email, or a missing counterpart makes it refuse (exit 78) rather than run against the wrong account. Add a row per account when an environment is created.
 4. Flag note (0.147): `--full-auto` no longer exists on `codex exec`; the equivalent is `-c approval_policy="never"` with `--sandbox workspace-write`, as the build block above shows.
-5. Resume cwd gotcha (0.147, field-proven 2026-08-17): `codex exec resume` accepts no `-C` and takes its workspace from the INVOKING shell's cwd. A resume launched from the wrong directory gives the thread the wrong writable scope and Codex reports BLOCKED. Always `cd` into the rock's workspace before any resume call.
+5. Resume cwd gotcha (0.147, field-proven 2026-08-17; `-C` still rejected on 0.153.4): `codex exec resume` accepts no `-C` and takes its workspace from the INVOKING shell's cwd. A resume launched from the wrong directory gives the thread the wrong writable scope and Codex reports BLOCKED. Always `cd` into the rock's workspace before any resume call.
 
 ## Failure handling
 
-**A call succeeded only if ALL of:** exit code 0, the round's `-o` file exists and is non-empty, the stream jsonl has NO `turn.failed` event (a mid-run backend disconnect exits looking clean; the diff survives, resume the same thread with an explicit list of what remains), and (for meeting rounds) its last line greps a `VERDICT:`. Anything less is a failure, even if the stream showed `thread.started`. Never read a verdict from a file the current round did not freshly write.
+**A call succeeded only if ALL of:** exit code 0, the round's report is extractable (the `-o` file is non-empty, or the stream log carries the final `agent_message`; non-negotiable 4), the stream jsonl has NO `turn.failed` event (a mid-run backend disconnect exits looking clean; the diff survives, resume the same thread with an explicit list of what remains), and (for meeting rounds) its last line greps a `VERDICT:`. Anything less is a failure, even if the stream showed `thread.started`. Never read a verdict from a file the current round did not freshly write.
+
+Watch Codex or any external state with the Monitor tool first; if Monitor is blocked, spaced one-shot checks; Bash loops only for local log waits with anchored terminal markers (director polling ruling, 2026-10-04).
 
 Watch loops polling an external API (Render, Vercel, CI) parse tolerantly (`items[0].get('deploy', items[0])`-style fallbacks for shape variants) and PRINT parse errors instead of looping past them; a hard-indexed shape has burned 10 silent minutes twice in one night.
 
 - Fresh call fails or times out (no thread id captured): retry ONCE with a fresh session and a new round filename. Do not "resume" a thread that never started.
 - Resume call fails or times out: retry ONCE with the same explicit thread id and a new round filename. Second failure: fall back to a fresh session carrying a one-paragraph summary of the meeting so far, and SAY SO to the user in one line (session continuity broke; the round count continues, the new session cannot verify its own prior findings).
 - Still failing: stop and surface the error (rerun the identical command WITHOUT `2>/dev/null` to capture stderr). Never silently continue without the review.
-- Interrupted build (session restart or kill mid-run, no `-o` report written): the Codex thread usually survives. Grep the run's stream jsonl for the `thread.started` id, then `codex exec resume <id>` with a finish-the-contract prompt ("complete the contract in <file>; report files changed + proof output"). Only start a fresh build if no stream file or thread id exists (2026-07-25, recovered two orphaned night builds this way).
+- Interrupted build (session restart, laptop sleep, the two-hour exec ceiling, no report written): the Codex thread usually survives. Grep the run's stream jsonl for the `thread.started` id, find its home with `grep -rl "<id>" ~/.codex/sessions ~/.codex-b/sessions`, then resume in the fix-round form above (workspace cwd, `CODEX_HOME` pinned, flags before `resume`) with a short finish-the-contract prompt ("complete the contract in <file>; report files changed + proof output"). Only start a fresh build if no stream file or thread id exists (2026-07-25, recovered two orphaned night builds this way).
 - Auth errors: tell the user to run `codex login`. Broken install (`spawn ... ENOENT`): `npm i -g @openai/codex@latest`.
-- Prerequisite floor: Codex CLI >= 0.130; contract verified on 0.143.0.
+- Prerequisite floor: Codex CLI >= 0.130; flag forms parse-checked on codex-cli 0.153.4 (2026-10-04). After a Codex upgrade, re-run `codex exec --help` and `codex exec resume --help` and re-check every flag in this file before the next run.
