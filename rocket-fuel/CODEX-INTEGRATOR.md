@@ -113,6 +113,13 @@ PROOF: Run `<PROOF_CMD>` and include its full output in your report.
   `node --import tsx <script>` from its package dir, never the `tsx` launcher
   or `pnpm exec tsx` (the launcher's IPC pipe dies with EPERM in the sandbox,
   and a failed write step can then masquerade as an idempotent pass).
+GUARD TESTS: <every existing test that reads source or pins a count over the
+  files this rock touches, found by grepping the test tree for those paths
+  (readFileSync of src, allowlists, inventory and card counts, colour or token
+  guards, permission and entitlement exemptions)> The builder runs each and,
+  if it must change one, says why in the report; a guard edited only to pass
+  is a defect. A rock with no line here (or "none found" with the grep used)
+  is not frozen.
 CRITIQUE: <only for rocks with a user-facing surface> Render or run the result
   the way a user would experience it (screenshot the page desktop + mobile, open
   the export, run the binary). Then critique it hostilely in writing: rhythm,
