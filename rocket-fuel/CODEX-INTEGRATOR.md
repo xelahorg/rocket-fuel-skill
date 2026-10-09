@@ -120,6 +120,10 @@ CRITIQUE: <only for rocks with a user-facing surface> Render or run the result
   what you find, then add ONE deliberate refinement beyond the fix list. Include
   the critique and the render evidence in your report. A report without them is
   incomplete.
+DESIGN FRAMES: <only for rocks whose surface has Approved Paper frames> Each
+  frame's id, its get_jsx output or a file path to it, and the render command
+  the builder can run. Build to the frame, render, compare side by side in the
+  report. Frames cited by id alone are not a spec (guardrail 52).
 DATA FACTS: <only for rocks touching a served payload> The exact key values for
   every lookup this rock performs, verified against the LIVE API, not the source.
 OUTPUT: End with a report: files changed (one line each: path + what/why),
